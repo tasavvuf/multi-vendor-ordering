@@ -14,6 +14,18 @@ export async function createOrder(input: CreateOrderInput) {
 
   try {
     await client.query('BEGIN');
+    const vendorIds = input.vendors.map((vendor) => vendor.vendorId);
+    const vendorsResult = await client.query<{ id: string }>(
+      'SELECT id FROM vendors WHERE id = ANY($1::uuid[])',
+      [vendorIds],
+    );
+    const existingVendorIds = new Set(vendorsResult.rows.map((vendor) => vendor.id));
+    const missingVendor = vendorIds.find((vendorId) => !existingVendorIds.has(vendorId));
+
+    if (missingVendor) {
+      throw new AppError(400, `Vendor ${missingVendor} does not exist`);
+    }
+
     const productIds = input.vendors.flatMap((vendor) => vendor.items.map((item) => item.productId));
     const productsResult = await client.query<ProductRow>(
       'SELECT id, vendor_id, price FROM products WHERE id = ANY($1::uuid[]) AND is_available = true FOR UPDATE',
@@ -26,18 +38,19 @@ export async function createOrder(input: CreateOrderInput) {
       throw new AppError(400, `Product ${missingProduct} does not exist`);
     }
 
-    const total = input.vendors.reduce((vendorTotal, vendor) => {
+    const totalInPaise = input.vendors.reduce((vendorTotal, vendor) => {
       return vendorTotal + vendor.items.reduce((itemTotal, item) => {
         const product = products.get(item.productId) as ProductRow;
         if (product.vendor_id !== vendor.vendorId) {
           throw new AppError(400, `Product ${item.productId} does not belong to vendor ${vendor.vendorId}`);
         }
-        return itemTotal + Number(product.price) * item.quantity;
+        const unitPriceInPaise = Math.round(Number(product.price) * 100);
+        return itemTotal + unitPriceInPaise * item.quantity;
       }, 0);
     }, 0);
     const orderResult = await client.query<{ id: string }>(
       'INSERT INTO orders (total) VALUES ($1) RETURNING id',
-      [total.toFixed(2)],
+      [(totalInPaise / 100).toFixed(2)],
     );
     const orderId = orderResult.rows[0].id;
 
