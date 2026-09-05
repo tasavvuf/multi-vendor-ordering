@@ -169,6 +169,62 @@ const options: swaggerJSDoc.Options = {
           },
         },
       },
+      '/api/vendors/{vendorId}/products': {
+        get: {
+          tags: ['Vendors'],
+          summary: 'Get products for a vendor',
+          parameters: [
+            {
+              name: 'vendorId',
+              in: 'path',
+              required: true,
+              description: 'Vendor UUID',
+              schema: { type: 'string', format: 'uuid' },
+              example: '3809313a-8a2e-464a-80d9-d48ca217886e',
+            },
+          ],
+          responses: {
+            200: {
+              description: 'Vendor products returned successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      data: {
+                        type: 'object',
+                        properties: {
+                          vendor: {
+                            type: 'object',
+                            properties: {
+                              id: { type: 'string', format: 'uuid' },
+                              name: { type: 'string' },
+                            },
+                          },
+                          products: {
+                            type: 'array',
+                            items: {
+                              type: 'object',
+                              properties: {
+                                id: { type: 'string', format: 'uuid' },
+                                name: { type: 'string' },
+                                price: { type: 'string', example: '249.00' },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            404: { description: 'Vendor not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            500: { description: 'Server error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
       '/api/products': {
         get: {
           tags: ['Products'],
