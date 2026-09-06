@@ -6,6 +6,7 @@ import Dock from './components/ui/Dock';
 import CartPageView from './pages/CartPage';
 import ProductDetailsPageView from './pages/ProductDetailsPage';
 import OrderPageView from './pages/OrderPage';
+import ProductsPageView from './pages/ProductsPage';
 
 type Vendor = {
   id: string;
@@ -69,14 +70,6 @@ const HomeIcon = makeIcon([['path', { d: 'M4 11.5 12 5l8 6.5' }], ['path', { d: 
 const StoreIcon = makeIcon([['path', { d: 'M5 10h14l-1-5H6l-1 5Z' }], ['path', { d: 'M6 10v9h12v-9' }], ['path', { d: 'M9 19v-5h6v5' }]]);
 const OrdersIcon = makeIcon([['rect', { x: 6, y: 4, width: 12, height: 16, rx: 2 }], ['path', { d: 'M9 8h6M9 12h6M9 16h4' }]]);
 const HeartIcon = makeIcon([['path', { d: 'M12 20s-7-4.2-9-8.6C1.6 8.2 3.7 5 7 5c2 0 3.2 1.1 5 3 1.8-1.9 3-3 5-3 3.3 0 5.4 3.2 4 6.4C19 15.8 12 20 12 20Z' }]]);
-const SlidersIcon = makeIcon([
-  ['path', { d: 'M4 7h9' }],
-  ['path', { d: 'M17 7h3' }],
-  ['circle', { cx: 15, cy: 7, r: 2 }],
-  ['path', { d: 'M4 17h3' }],
-  ['path', { d: 'M11 17h9' }],
-  ['circle', { cx: 9, cy: 17, r: 2 }],
-]);
 const ArrowUpIcon = makeIcon([['path', { d: 'M7 17 17 7' }], ['path', { d: 'M9 7h8v8' }]]);
 const PlusIcon = makeIcon([['path', { d: 'M12 5v14' }], ['path', { d: 'M5 12h14' }]]);
 const MinusIcon = makeIcon([['path', { d: 'M5 12h14' }]]);
@@ -168,6 +161,8 @@ function App() {
       ? 'orders'
       : location.pathname === '/stores'
         ? 'stores'
+        : location.pathname === '/products'
+          ? 'products'
         : location.pathname.startsWith('/products/')
           ? 'product'
           : 'home';
@@ -316,14 +311,6 @@ function App() {
     }
   }
 
-  async function showAllProducts() {
-    setActiveVendorId('all');
-    setActiveCategory('all');
-    setQuery('');
-    await loadStorefront();
-    productsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
   async function createOrder() {
     if (!cart.length) {
       setNotice('Add products before creating an order.');
@@ -400,13 +387,13 @@ function App() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <label className="grid h-12 min-w-0 grid-cols-[24px_minmax(0,1fr)_40px] items-center rounded-full bg-[#f7f7f5] pl-4 text-[#8e8e8e] shadow-inner sm:w-[360px]">
+            <form onSubmit={(event) => { event.preventDefault(); navigate(`/products${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ''}`); }} className="grid h-12 min-w-0 grid-cols-[24px_minmax(0,1fr)_40px] items-center rounded-full bg-[#f7f7f5] pl-4 text-[#8e8e8e] shadow-inner sm:w-[360px]">
               <HugeiconsIcon icon={SearchIcon} size={19} strokeWidth={1.6} />
               <input className="w-full border-0 bg-transparent text-sm font-semibold text-[#202020] outline-0 placeholder:text-[#9c9c9c]" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="what are you looking for?" aria-label="Search products" />
-              <button type="button" onClick={() => setActiveCategory((category) => category === 'all' ? 'footwear' : 'all')} className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-0 bg-white text-[#0d0d0d] shadow-sm transition duration-200 hover:bg-[#e9f4d8] active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#a8d843]" aria-label="Toggle product filter">
-                <HugeiconsIcon icon={SlidersIcon} size={20} strokeWidth={1.7} />
+              <button type="submit" className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-0 bg-white text-[#0d0d0d] shadow-sm transition duration-200 hover:bg-[#e9f4d8] active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#a8d843]" aria-label="Search products">
+                <HugeiconsIcon icon={SearchIcon} size={18} strokeWidth={1.7} />
               </button>
-            </label>
+            </form>
             <button type="button" onClick={() => navigate('/cart')} className="relative flex h-12 cursor-pointer items-center justify-center gap-2 rounded-full border-0 bg-[#101010] px-5 text-sm font-extrabold text-white transition duration-200 hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#a8d843]">
               <HugeiconsIcon icon={BagIcon} size={20} strokeWidth={1.8} />
               Cart
@@ -447,7 +434,7 @@ function App() {
                 </section>
 
                 <section className="mt-7">
-                  <SectionTitle title="Categories" actionLabel="See all" onAction={() => setActiveCategory('all')} />
+                  <SectionTitle title="Categories" actionLabel="See all" onAction={() => navigate('/products')} />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     {categories.map((category) => (
                       <button type="button" onClick={() => setActiveCategory(category.id)} className={`relative min-h-[92px] cursor-pointer overflow-hidden rounded-2xl border-0 bg-gradient-to-br ${category.tone} p-4 text-left shadow-[0_12px_30px_rgb(24_24_24_/_0.06)] transition duration-200 hover:-translate-y-1 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#a8d843] ${activeCategory === category.id ? 'ring-2 ring-[#a8d843]' : ''}`} key={category.id}>
@@ -459,7 +446,7 @@ function App() {
                 </section>
 
                 <section className="mt-7" ref={productsRef}>
-                  <SectionTitle title={activeVendorId === 'all' ? 'New Arrival' : 'Store Products'} actionLabel="See all" onAction={showAllProducts} />
+                  <SectionTitle title={activeVendorId === 'all' ? 'New Arrival' : 'Store Products'} actionLabel="See all" onAction={() => navigate('/products')} />
                   {loading || loadingVendorId ? (
                     <LoadingGrid />
                   ) : (
@@ -491,6 +478,10 @@ function App() {
                   )}
                 </section>
               </>
+            )}
+
+            {view === 'products' && (
+              <ProductsPageView onOpenProduct={openProduct} onAddToCart={addToCart} />
             )}
 
             {view === 'cart' && (

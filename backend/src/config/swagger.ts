@@ -250,6 +250,20 @@ const options: swaggerJSDoc.Options = {
           },
         },
       },
+      '/api/products/search': {
+        get: {
+          tags: ['Products'],
+          summary: 'Search available products by name, description, or vendor',
+          parameters: [{ name: 'q', in: 'query', required: false, schema: { type: 'string' }, description: 'Search text. Empty returns all available products.' }],
+          responses: {
+            200: {
+              description: 'Matching products returned successfully',
+              content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, data: { type: 'array', items: { $ref: '#/components/schemas/Product' } } } } } },
+            },
+            500: { description: 'Server error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
+      },
       '/api/orders': {
         get: {
           tags: ['Orders'],
