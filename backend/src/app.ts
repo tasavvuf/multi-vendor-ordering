@@ -14,7 +14,7 @@ dotenv.config();
 
 const app = express();
 const normalizeOrigin = (origin: string) => origin.trim().replace(/\/$/, '');
-const configuredOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
+const configuredOrigins = (process.env.ALLOWED_ORIGINS ?? process.env.FRONTEND_URL ?? 'http://localhost:5173')
   .split(',')
   .map(normalizeOrigin)
   .filter(Boolean);

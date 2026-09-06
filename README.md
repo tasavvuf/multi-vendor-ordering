@@ -206,7 +206,7 @@ Frontend scripts:
 | --- | --- | --- | --- |
 | `PORT` | Backend | No | HTTP port. Defaults to `4000` in `server.ts`. |
 | `DATABASE_URL` | Backend | Yes | PostgreSQL connection string used by the `pg` pool. |
-| `FRONTEND_URL` | Backend | No | Allowed frontend CORS origin(s), comma-separated when needed. Trailing slashes are normalized. Defaults to `http://localhost:5173`. |
+| `ALLOWED_ORIGINS` | Backend | No | Allowed frontend CORS origin(s), comma-separated when needed. Trailing slashes are normalized. Defaults to `http://localhost:5173`. `FRONTEND_URL` remains supported as a fallback for older deployments. |
 | `VITE_API_URL` | Frontend | Yes | The only backend API base URL used by the frontend, for example `http://localhost:4000/api`. |
 
 The repository includes separate environment examples: `backend/.env.example` for backend port, database, and CORS configuration, and `frontend/.env.example` for the frontend API URL. Copy each example to its respective local environment file. `.env` files are ignored by Git; only example files are allowed by the root ignore rules.
@@ -635,7 +635,7 @@ Implemented:
 - Environment variables for database URL, port, CORS origin, and frontend API URL.
 - `.env` files ignored by Git.
 - Helmet middleware for common HTTP security headers.
-- CORS allowlist based on normalized, comma-separated `FRONTEND_URL` values, plus local development exceptions for the API host.
+- CORS allowlist based on normalized, comma-separated `ALLOWED_ORIGINS` values, plus local development exceptions for the API host.
 - Parameterized PostgreSQL queries.
 - Strict Zod validation for order creation.
 - Generic `500` responses rather than returning raw unexpected error details to clients.
@@ -650,7 +650,7 @@ Implemented:
 
 For the current deployment, set these provider environment variables:
 
-- Render backend: `FRONTEND_URL=https://multi-vendor-ordering.vercel.app/`
+- Render backend: `ALLOWED_ORIGINS=https://multi-vendor-ordering.vercel.app`
 - Vercel frontend: `VITE_API_URL=https://multi-vendor-ordering.onrender.com/api`
 
 The backend normalizes the configured frontend origin, so either a trailing slash or no trailing slash is accepted. After changing Render environment variables, redeploy or restart the service so the new CORS allowlist is loaded.
