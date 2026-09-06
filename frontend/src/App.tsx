@@ -7,6 +7,7 @@ import CartPageView from './pages/CartPage';
 import ProductDetailsPageView from './pages/ProductDetailsPage';
 import OrderPageView from './pages/OrderPage';
 import ProductsPageView from './pages/ProductsPage';
+import heroImage from '../gg.png';
 
 type Vendor = {
   id: string;
@@ -413,7 +414,7 @@ function App() {
           <div className="min-w-0">
             {view === 'home' && (
               <>
-                <section className="relative grid min-h-[230px] overflow-hidden rounded-[28px] bg-[#a8d843] p-5 shadow-[0_22px_60px_rgb(73_93_21_/_0.18)] sm:grid-cols-[1fr_240px] md:p-7">
+                <section className="relative grid min-h-[230px] overflow-hidden rounded-[28px] bg-[#a8d843] p-5 shadow-[0_22px_60px_rgb(73_93_21_/_0.18)] sm:min-h-[280px] sm:grid-cols-[1fr_280px] md:p-7">
                   <div className="relative z-10">
                     <span className="inline-flex h-7 items-center rounded-full bg-[#151515] px-3 text-xs font-extrabold text-white">Limited Offer</span>
                     <h2 className="mb-5 mt-4 max-w-[440px] text-3xl font-black leading-tight text-[#182009] md:text-5xl">First Purchase Enjoy a Special Offer</h2>
@@ -424,13 +425,7 @@ function App() {
                       </span>
                     </button>
                   </div>
-                  <div className="absolute bottom-0 right-3 h-[210px] w-[180px] sm:relative sm:right-auto sm:justify-self-end" aria-hidden="true">
-                    <span className="absolute left-[62px] top-2 block h-[82px] w-[72px] rounded-[50%_50%_42%_42%] bg-[#d88443]" />
-                    <span className="absolute left-[76px] top-7 block h-[48px] w-11 rounded-full bg-[#f0b78f]" />
-                    <span className="absolute bottom-0 left-[65px] block h-[128px] w-[76px] rounded-[26px_26px_3px_3px] bg-gradient-to-r from-[#53565f] from-[48%] to-[#898d93] to-[48%]" />
-                    <span className="absolute left-1 top-[80px] block h-[78px] w-[62px] rotate-[24deg] bg-gradient-to-br from-[#42c5c7] to-[#f8cf4d] [clip-path:polygon(50%_0,100%_32%,76%_100%,13%_86%,0_30%)]" />
-                    <span className="absolute right-1 top-[80px] block h-[78px] w-[62px] -rotate-[24deg] bg-gradient-to-br from-[#ff8c4a] to-[#24b8c0] [clip-path:polygon(50%_0,100%_32%,76%_100%,13%_86%,0_30%)]" />
-                  </div>
+                  <img src={heroImage} alt="" className="absolute bottom-0 right-0 h-[230px] w-[205px] object-contain object-bottom sm:relative sm:right-auto sm:h-[280px] sm:w-[250px] sm:justify-self-end" aria-hidden="true" />
                 </section>
 
                 <section className="mt-7">
@@ -562,6 +557,12 @@ function App() {
       </div>
 
       <Dock items={dockItems} baseItemSize={46} magnification={58} panelHeight={58} dockHeight={118} distance={150} className="!rounded-full !border-0 bg-white/95 shadow-[0_12px_35px_rgb(16_16_16_/_0.13)]" />
+      <footer className="mt-2 text-center text-xs font-semibold tracking-[0.02em] text-[#7b7c7d]">
+        Developed with love by{' '}
+        <a href="https://tasavvuf.vercel.app/" target="_blank" rel="noreferrer" className="font-extrabold text-[#666768] underline decoration-[#b4b5b6] underline-offset-2 transition-colors hover:text-[#171717]">
+          Tasavvuf
+        </a>
+      </footer>
     </main>
   );
 }
