@@ -6,7 +6,6 @@ The repository is the source of truth for the current implementation. Authentica
 
 ## Live Demo
 
-No deployed application URL is present in the repository.
 
 ```text
 Frontend: https://multi-vendor-ordering.vercel.app/
