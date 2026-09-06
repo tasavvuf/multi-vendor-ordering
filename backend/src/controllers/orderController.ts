@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 import { createOrderSchema } from '../schemas/orderSchema';
-import { createOrder, getOrderById } from '../services/orderService';
+import { createOrder, getOrderById, getOrders } from '../services/orderService';
 import { AppError } from '../utils/errors';
 import { z } from 'zod';
 
@@ -13,6 +13,15 @@ export const create: RequestHandler = async (request, response, next) => {
 
     const order = await createOrder(parsed.data);
     response.status(201).json({ success: true, data: order });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAll: RequestHandler = async (_request, response, next) => {
+  try {
+    const orders = await getOrders();
+    response.json({ success: true, data: orders });
   } catch (error) {
     next(error);
   }

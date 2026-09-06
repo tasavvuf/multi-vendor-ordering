@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import axios, { AxiosError } from 'axios';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Dock from './components/ui/Dock';
+import CartPageView from './pages/CartPage';
+import ProductDetailsPageView from './pages/ProductDetailsPage';
+import OrderPageView from './pages/OrderPage';
 
 type Vendor = {
   id: string;
@@ -25,6 +29,8 @@ type CartItem = {
 type OrderItem = {
   productId: string;
   vendorId: string;
+  productName: string;
+  vendorName: string;
   quantity: number;
   unitPrice: string;
 };
@@ -37,6 +43,10 @@ type Order = {
   items: OrderItem[];
 };
 
+type OrderSummary = Omit<Order, 'items'> & {
+  itemCount: number;
+};
+
 type VendorProductsResponse = {
   vendor: Vendor;
   products: Array<Omit<Product, 'vendor'> & { vendor?: Vendor }>;
@@ -47,19 +57,17 @@ type ApiResponse<T> = {
   data: T;
 };
 
-type View = 'home' | 'stores' | 'orders' | 'cart' | 'product';
-
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
 const PRODUCT_IMAGE_URL = 'https://placehold.co/600x400';
 const api = axios.create({ baseURL: API_BASE_URL });
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const makeIcon = (paths: IconSvgElement) => paths;
-const MenuIcon = makeIcon([['path', { d: 'M4 7h16' }], ['path', { d: 'M4 12h16' }], ['path', { d: 'M4 17h16' }]]);
 const SearchIcon = makeIcon([['circle', { cx: 11, cy: 11, r: 7 }], ['path', { d: 'm16 16 4 4' }]]);
 const BagIcon = makeIcon([['path', { d: 'M7 9h10l1 11H6L7 9Z' }], ['path', { d: 'M9 9V7a3 3 0 0 1 6 0v2' }]]);
 const HomeIcon = makeIcon([['path', { d: 'M4 11.5 12 5l8 6.5' }], ['path', { d: 'M6.5 10v9h11v-9' }], ['path', { d: 'M10 19v-5h4v5' }]]);
 const StoreIcon = makeIcon([['path', { d: 'M5 10h14l-1-5H6l-1 5Z' }], ['path', { d: 'M6 10v9h12v-9' }], ['path', { d: 'M9 19v-5h6v5' }]]);
+const OrdersIcon = makeIcon([['rect', { x: 6, y: 4, width: 12, height: 16, rx: 2 }], ['path', { d: 'M9 8h6M9 12h6M9 16h4' }]]);
 const HeartIcon = makeIcon([['path', { d: 'M12 20s-7-4.2-9-8.6C1.6 8.2 3.7 5 7 5c2 0 3.2 1.1 5 3 1.8-1.9 3-3 5-3 3.3 0 5.4 3.2 4 6.4C19 15.8 12 20 12 20Z' }]]);
 const SlidersIcon = makeIcon([
   ['path', { d: 'M4 7h9' }],
@@ -82,7 +90,9 @@ const categories = [
 
 function money(value: Product['price']) {
   const amount = Number(value);
-  return Number.isFinite(amount) ? `$${amount.toFixed(amount % 1 === 0 ? 0 : 2)}` : `$${value}`;
+  return Number.isFinite(amount)
+    ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(amount)
+    : `₹${value}`;
 }
 
 function formatError(error: unknown, fallback: string) {
@@ -150,7 +160,17 @@ function LoadingGrid() {
 }
 
 function App() {
-  const [view, setView] = useState<View>('home');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const view = location.pathname === '/cart'
+    ? 'cart'
+    : location.pathname === '/order' || location.pathname === '/orders' || location.pathname.startsWith('/orders/')
+      ? 'orders'
+      : location.pathname === '/stores'
+        ? 'stores'
+        : location.pathname.startsWith('/products/')
+          ? 'product'
+          : 'home';
   const [query, setQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -166,6 +186,7 @@ function App() {
   const [orderLookupId, setOrderLookupId] = useState('');
   const [orderLookupLoading, setOrderLookupLoading] = useState(false);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const productsRef = useRef<HTMLDivElement | null>(null);
 
   async function loadStorefront(showLoader = true) {
@@ -194,6 +215,32 @@ function App() {
     loadStorefront(false);
   }, []);
 
+  useEffect(() => {
+    const productId = location.pathname.startsWith('/products/') ? location.pathname.split('/')[2] : null;
+    const orderId = location.pathname.startsWith('/orders/') ? location.pathname.split('/')[2] : null;
+
+    if (productId) {
+      api.get<ApiResponse<Product>>(`/products/${productId}`)
+        .then((response) => setSelectedProduct(response.data.data))
+        .catch(() => {
+          setSelectedProduct(null);
+          setNotice('Product not found.');
+        });
+    }
+
+    if (orderId && uuidPattern.test(orderId)) {
+      api.get<ApiResponse<Order>>(`/orders/${orderId}`)
+        .then((response) => setActiveOrder(response.data.data))
+        .catch((error) => setNotice(formatError(error, 'Order not found.')));
+    }
+
+    if (location.pathname === '/orders') {
+      api.get<ApiResponse<OrderSummary[]>>('/orders')
+        .then((response) => setOrders(response.data.data))
+        .catch((error) => setNotice(formatError(error, 'Orders could not be loaded.')));
+    }
+  }, [location.pathname]);
+
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const selectedCategory = categories.find((category) => category.id === activeCategory);
@@ -213,13 +260,13 @@ function App() {
   const cartQuantity = useMemo(() => cart.reduce((total, item) => total + item.quantity, 0), [cart]);
   const canCheckout = cart.length > 0 && cart.every((item) => isBackendProduct(item.product));
 
-  function addToCart(product: Product) {
+  function addToCart(product: Product, quantity = 1) {
     setCart((current) => {
       const found = current.find((item) => item.product.id === product.id);
       if (found) {
-        return current.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+        return current.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + quantity } : item);
       }
-      return [...current, { product, quantity: 1 }];
+      return [...current, { product, quantity }];
     });
     setNotice(`${product.name} added to cart`);
   }
@@ -242,12 +289,12 @@ function App() {
 
   function openProduct(product: Product) {
     setSelectedProduct(product);
-    setView('product');
+    navigate(`/products/${product.id}`);
     setNotice('');
   }
 
   async function selectVendor(vendor: Vendor) {
-    setView('stores');
+    navigate('/stores');
     setQuery('');
     setActiveCategory('all');
     setActiveVendorId(vendor.id);
@@ -302,7 +349,7 @@ function App() {
       const response = await api.post<ApiResponse<Order>>('/orders', { vendors: Object.values(grouped) });
       setActiveOrder(response.data.data);
       setCart([]);
-      setView('orders');
+      navigate('/order');
       setNotice('Order created successfully');
     } catch (error) {
       setNotice(formatError(error, 'Order could not be created.'));
@@ -326,6 +373,7 @@ function App() {
     try {
       const response = await api.get<ApiResponse<Order>>(`/orders/${trimmedId}`);
       setActiveOrder(response.data.data);
+      navigate(`/orders/${trimmedId}`);
     } catch (error) {
       setNotice(formatError(error, 'Order not found.'));
     } finally {
@@ -334,9 +382,10 @@ function App() {
   }
 
   const dockItems = [
-    { label: 'Home', onClick: () => setView('home'), className: navItemClass(view === 'home'), icon: <HugeiconsIcon icon={HomeIcon} size={23} strokeWidth={1.8} /> },
-    { label: 'Cart', onClick: () => setView('cart'), className: navItemClass(view === 'cart'), icon: <HugeiconsIcon icon={BagIcon} size={23} strokeWidth={1.8} /> },
-    { label: 'Stores', onClick: () => setView('stores'), className: navItemClass(view === 'stores'), icon: <HugeiconsIcon icon={StoreIcon} size={23} strokeWidth={1.8} /> },
+    { label: 'Home', onClick: () => navigate('/'), className: navItemClass(view === 'home'), icon: <HugeiconsIcon icon={HomeIcon} size={23} strokeWidth={1.8} /> },
+    { label: 'Cart', onClick: () => navigate('/cart'), className: navItemClass(view === 'cart'), icon: <HugeiconsIcon icon={BagIcon} size={23} strokeWidth={1.8} /> },
+    { label: 'Orders', onClick: () => navigate('/orders'), className: navItemClass(view === 'orders'), icon: <HugeiconsIcon icon={OrdersIcon} size={23} strokeWidth={1.8} /> },
+    { label: 'Stores', onClick: () => navigate('/stores'), className: navItemClass(view === 'stores'), icon: <HugeiconsIcon icon={StoreIcon} size={23} strokeWidth={1.8} /> },
   ];
 
   return (
@@ -344,9 +393,6 @@ function App() {
       <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
         <header className="mb-5 flex flex-col gap-4 rounded-[26px] bg-white/80 p-3 shadow-[0_20px_55px_rgb(42_37_30_/_0.08)] backdrop-blur md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setView('stores')} className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border-0 bg-white text-[#111] shadow-[0_7px_16px_rgb(18_16_14_/_0.08)] transition duration-200 hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#a8d843]">
-              <HugeiconsIcon icon={MenuIcon} size={22} strokeWidth={1.8} />
-            </button>
             <div>
               <p className="m-0 text-xs font-extrabold uppercase tracking-[0.08em] text-[#8aa72c]">Multi vendor ordering</p>
               <h1 className="m-0 text-xl font-black leading-tight text-[#121212] sm:text-2xl">Shop products from every store</h1>
@@ -361,7 +407,7 @@ function App() {
                 <HugeiconsIcon icon={SlidersIcon} size={20} strokeWidth={1.7} />
               </button>
             </label>
-            <button type="button" onClick={() => setView('cart')} className="relative flex h-12 cursor-pointer items-center justify-center gap-2 rounded-full border-0 bg-[#101010] px-5 text-sm font-extrabold text-white transition duration-200 hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#a8d843]">
+            <button type="button" onClick={() => navigate('/cart')} className="relative flex h-12 cursor-pointer items-center justify-center gap-2 rounded-full border-0 bg-[#101010] px-5 text-sm font-extrabold text-white transition duration-200 hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#a8d843]">
               <HugeiconsIcon icon={BagIcon} size={20} strokeWidth={1.8} />
               Cart
               {cartQuantity > 0 && <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#a8d843] px-1.5 text-xs font-black text-[#121212]">{cartQuantity}</span>}
@@ -420,9 +466,6 @@ function App() {
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                       {filteredProducts.map((product) => (
                         <article className="group overflow-hidden rounded-2xl bg-white p-3 shadow-[0_12px_30px_rgb(24_24_24_/_0.06)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_45px_rgb(24_24_24_/_0.1)]" key={product.id}>
-                          <button type="button" onClick={() => toggleFavorite(product.id)} className={`absolute ml-[calc(100%-62px)] mt-2 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-0 bg-white/90 shadow-sm transition duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#a8d843] ${favorites.has(product.id) ? 'text-[#a8d843]' : 'text-[#9e9e9e]'}`} aria-label={`Save ${product.name}`}>
-                            <HugeiconsIcon icon={HeartIcon} size={19} strokeWidth={1.7} />
-                          </button>
                           <button type="button" onClick={() => openProduct(product)} className="relative block h-52 w-full cursor-pointer overflow-hidden rounded-xl border-0 bg-[#e7e7e7] transition duration-200 group-hover:bg-[#dededc] md:h-56" aria-label={`View ${product.name}`}>
                             <ProductImage product={product} />
                           </button>
@@ -451,16 +494,16 @@ function App() {
             )}
 
             {view === 'cart' && (
-              <CartPage cart={cart} cartTotal={cartTotal} onBack={() => setView('home')} onQuantityChange={changeQuantity} onCheckout={createOrder} checkoutLoading={checkoutLoading} canCheckout={canCheckout} />
+              <CartPageView cart={cart} cartTotal={cartTotal} onBack={() => navigate('/')} onQuantityChange={changeQuantity} onCheckout={createOrder} onProductClick={(productId) => navigate(`/products/${productId}`)} onVendorClick={(vendor) => void selectVendor(vendor)} checkoutLoading={checkoutLoading} canCheckout={canCheckout} />
             )}
 
-            {view === 'product' && selectedProduct && (
-              <ProductDetailsPage product={selectedProduct} quantity={cart.find((item) => item.product.id === selectedProduct.id)?.quantity ?? 0} onBack={() => setView(activeVendorId === 'all' ? 'home' : 'stores')} onQuantityChange={changeQuantity} onAddToCart={() => addToCart(selectedProduct)} onToggleFavorite={() => toggleFavorite(selectedProduct.id)} isFavorite={favorites.has(selectedProduct.id)} />
+            {view === 'product' && selectedProduct?.id === location.pathname.split('/')[2] && (
+              <ProductDetailsPageView key={selectedProduct.id} product={selectedProduct} onBack={() => navigate(activeVendorId === 'all' ? '/' : '/stores')} onAddToCart={(quantity) => addToCart(selectedProduct, quantity)} onVendorClick={() => selectVendor(selectedProduct.vendor)} onToggleFavorite={() => toggleFavorite(selectedProduct.id)} isFavorite={favorites.has(selectedProduct.id)} />
             )}
 
             {view === 'stores' && (
               <section className="rounded-[28px] bg-white p-4 shadow-[0_20px_55px_rgb(42_37_30_/_0.08)] md:p-6">
-                <SectionTitle title={activeVendorId === 'all' ? 'Stores' : vendors.find((vendor) => vendor.id === activeVendorId)?.name ?? 'Store Products'} actionLabel={activeVendorId === 'all' ? 'All products' : 'Back to stores'} onAction={activeVendorId === 'all' ? showAllProducts : () => { setActiveVendorId('all'); loadStorefront(); }} />
+                <SectionTitle title={activeVendorId === 'all' ? 'Stores' : vendors.find((vendor) => vendor.id === activeVendorId)?.name ?? 'Store Products'} actionLabel={activeVendorId === 'all' ? undefined : 'Back to stores'} onAction={activeVendorId === 'all' ? undefined : () => { setActiveVendorId('all'); loadStorefront(); }} />
                 {activeVendorId !== 'all' ? (
                   loadingVendorId ? (
                     <LoadingGrid />
@@ -504,18 +547,17 @@ function App() {
             )}
 
             {view === 'orders' && (
-              <OrderPanel
+              <OrderPageView
+                orders={orders}
+                showOrderList={location.pathname === '/orders'}
                 activeOrder={activeOrder}
-                cart={cart}
-                cartTotal={cartTotal}
-                checkoutLoading={checkoutLoading}
                 orderLookupId={orderLookupId}
                 orderLookupLoading={orderLookupLoading}
-                canCheckout={canCheckout}
-                onCheckout={createOrder}
                 onLookup={lookupOrder}
                 onOrderLookupIdChange={setOrderLookupId}
-                onQuantityChange={changeQuantity}
+                onOrderClick={(orderId) => navigate(`/orders/${orderId}`)}
+                onProductClick={(productId) => navigate(`/products/${productId}`)}
+                onVendorClick={(vendor) => void selectVendor(vendor)}
               />
             )}
           </div>
@@ -537,7 +579,7 @@ function navItemClass(active: boolean) {
   return `${active ? '!bg-[#e9f4d8] !text-[#152008]' : '!bg-white !text-[#171717]'} !border-0 hover:!bg-[#e9f4d8]`;
 }
 
-function CartPage({ cart, cartTotal, onBack, onQuantityChange, onCheckout, checkoutLoading, canCheckout }: {
+export function LegacyCartPage({ cart, cartTotal, onBack, onQuantityChange, onCheckout, checkoutLoading, canCheckout }: {
   cart: CartItem[];
   cartTotal: number;
   onBack: () => void;
@@ -607,7 +649,7 @@ function CartPage({ cart, cartTotal, onBack, onQuantityChange, onCheckout, check
   );
 }
 
-function ProductDetailsPage({ product, quantity, onBack, onQuantityChange, onAddToCart, onToggleFavorite, isFavorite }: {
+export function LegacyProductDetailsPage({ product, quantity, onBack, onQuantityChange, onAddToCart, onToggleFavorite, isFavorite }: {
   product: Product;
   quantity: number;
   onBack: () => void;
@@ -625,9 +667,6 @@ function ProductDetailsPage({ product, quantity, onBack, onQuantityChange, onAdd
           <span className="text-2xl leading-none">&#8249;</span>
         </button>
         <h2 className="m-0 text-xl font-black text-[#171717]">Details</h2>
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#171717] shadow-[0_7px_16px_rgb(18_16_14_/_0.08)]" aria-hidden="true">
-          <HugeiconsIcon icon={BagIcon} size={20} strokeWidth={1.8} />
-        </span>
       </div>
 
       <div className="rounded-[28px] bg-white p-3 shadow-[0_20px_55px_rgb(42_37_30_/_0.08)] sm:p-5">
@@ -651,7 +690,7 @@ function ProductDetailsPage({ product, quantity, onBack, onQuantityChange, onAdd
             </button>
           </div>
 
-          <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="mt-4 flex items-center gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#d8f0cf] text-xs font-black text-[#171717]">{product.vendor.name.slice(0, 2).toUpperCase()}</span>
               <span className="min-w-0">
@@ -659,16 +698,9 @@ function ProductDetailsPage({ product, quantity, onBack, onQuantityChange, onAdd
                 <span className="block text-[11px] font-bold text-[#999]">Official store</span>
               </span>
             </div>
-            <button type="button" className="h-10 shrink-0 cursor-pointer rounded-full border-0 bg-[#101010] px-4 text-xs font-black text-white transition hover:bg-[#a8d843] hover:text-[#121212] focus:outline-none focus:ring-2 focus:ring-[#a8d843]">Following</button>
           </div>
 
-          <div className="mt-5 flex items-end justify-between gap-4">
-            <div>
-              <p className="m-0 text-xs font-bold text-[#999]">Select size</p>
-              <div className="mt-2 flex gap-2">
-                {['S', 'M', 'L', 'XL'].map((size) => <button type="button" className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border-0 text-xs font-black transition focus:outline-none focus:ring-2 focus:ring-[#a8d843] ${size === 'L' ? 'bg-[#a8d843] text-[#171717]' : 'bg-[#f1f1ef] text-[#555] hover:bg-[#e9f4d8]'}`} key={size}>{size}</button>)}
-              </div>
-            </div>
+          <div className="mt-5 flex justify-end">
             <div>
               <p className="m-0 text-right text-xs font-bold text-[#999]">QTY</p>
               <div className="mt-2 flex items-center gap-2 rounded-lg bg-[#f1f1ef] p-1">
@@ -748,7 +780,7 @@ function CartSummary({ cart, cartTotal, checkoutLoading, canCheckout, onCheckout
   );
 }
 
-function OrderPanel(props: {
+export function LegacyOrderPanel(props: {
   activeOrder: Order | null;
   cart: CartItem[];
   cartTotal: number;

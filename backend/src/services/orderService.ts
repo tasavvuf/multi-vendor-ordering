@@ -79,16 +79,32 @@ async function insertOrderItem(client: PoolClient, orderId: string, product: Pro
   );
 }
 
+export async function getOrders() {
+  const result = await pool.query(
+    `SELECT o.id, o.total, o.status, o.created_at AS "createdAt",
+            COUNT(oi.id)::int AS "itemCount"
+     FROM orders o
+     LEFT JOIN order_items oi ON oi.order_id = o.id
+     GROUP BY o.id
+     ORDER BY o.created_at DESC`,
+  );
+
+  return result.rows;
+}
+
 export async function getOrderById(orderId: string) {
   const result = await pool.query(
     `SELECT
       o.id, o.total, o.status, o.created_at AS "createdAt",
-       COALESCE(json_agg(json_build_object(
+      COALESCE(json_agg(json_build_object(
          'productId', oi.product_id, 'vendorId', oi.vendor_id,
+         'productName', p.name, 'vendorName', v.name,
          'quantity', oi.quantity, 'unitPrice', oi.unit_price
        ) ORDER BY oi.id) FILTER (WHERE oi.id IS NOT NULL), '[]'::json) AS items
      FROM orders o
      LEFT JOIN order_items oi ON oi.order_id = o.id
+     LEFT JOIN products p ON p.id = oi.product_id
+     LEFT JOIN vendors v ON v.id = oi.vendor_id
      WHERE o.id = $1
      GROUP BY o.id`,
     [orderId],

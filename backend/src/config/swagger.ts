@@ -112,6 +112,8 @@ const options: swaggerJSDoc.Options = {
                 properties: {
                   productId: { type: 'string', format: 'uuid' },
                   vendorId: { type: 'string', format: 'uuid' },
+                  productName: { type: 'string', example: 'Classic Runner' },
+                  vendorName: { type: 'string', example: 'Urban Supply' },
                   quantity: { type: 'integer' },
                   unitPrice: { type: 'string', example: '14.00' },
                 },
@@ -249,6 +251,39 @@ const options: swaggerJSDoc.Options = {
         },
       },
       '/api/orders': {
+        get: {
+          tags: ['Orders'],
+          summary: 'List orders with summary information',
+          responses: {
+            200: {
+              description: 'Order summaries returned successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      data: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'string', format: 'uuid' },
+                            total: { type: 'string', example: '28.00' },
+                            status: { type: 'string', example: 'pending' },
+                            createdAt: { type: 'string', format: 'date-time' },
+                            itemCount: { type: 'integer', example: 2 },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            500: { description: 'Server error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          },
+        },
         post: {
           tags: ['Orders'],
           summary: 'Create an order from grouped vendor cart items',
