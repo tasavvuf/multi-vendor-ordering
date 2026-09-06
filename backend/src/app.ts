@@ -13,8 +13,13 @@ import vendorRoutes from './routes/vendorRoutes';
 dotenv.config();
 
 const app = express();
+const normalizeOrigin = (origin: string) => origin.trim().replace(/\/$/, '');
+const configuredOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
+  .split(',')
+  .map(normalizeOrigin)
+  .filter(Boolean);
 const allowedOrigins = new Set([
-  process.env.FRONTEND_URL ?? 'http://localhost:5173',
+  ...configuredOrigins,
   'http://localhost:5000',
   'http://127.0.0.1:5000',
 ]);
@@ -22,7 +27,7 @@ const allowedOrigins = new Set([
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.has(origin)) {
+    if (!origin || allowedOrigins.has(normalizeOrigin(origin))) {
       callback(null, true);
       return;
     }

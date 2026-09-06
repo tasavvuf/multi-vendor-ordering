@@ -9,8 +9,8 @@ The repository is the source of truth for the current implementation. Authentica
 No deployed application URL is present in the repository.
 
 ```text
-Frontend: <ADD_DEPLOYED_FRONTEND_URL>
-Backend API: <ADD_DEPLOYED_BACKEND_URL>
+Frontend: https://multi-vendor-ordering.vercel.app/
+Backend API: https://multi-vendor-ordering.onrender.com/
 ```
 
 ## Features
@@ -76,7 +76,6 @@ There is no authentication layer, background queue, cache, payment provider, or 
 
 ```text
 multi-vendor-ordering/
-├── .env.example
 ├── .gitignore
 ├── README.md
 ├── backend/
@@ -110,11 +109,11 @@ multi-vendor-ordering/
 │   ├── schema.sql
 │   └── seed.sql
 └── frontend/
-  ├── .env.example
-  ├── bun.lock
-  ├── public/
-  ├── package.json
-  ├── vercel.json
+    ├── .env.example
+    ├── bun.lock
+    ├── public/
+    ├── package.json
+    ├── vercel.json
     ├── vite.config.ts
     ├── gg.png
     └── src/
@@ -190,7 +189,7 @@ bun run dev
 
 Vite normally serves the frontend at `http://localhost:5173`.
 
-The frontend API helper currently falls back to `http://localhost:5000/api` when `VITE_API_URL` is absent, while the backend defaults to port `4000`. For local development, set `VITE_API_URL=http://localhost:4000/api` as shown above, or run the backend on port `5000`.
+The frontend requires `VITE_API_URL` and has no hardcoded API fallback. It only sends requests to the URL configured in its own environment file.
 
 Frontend scripts:
 
@@ -207,10 +206,10 @@ Frontend scripts:
 | --- | --- | --- | --- |
 | `PORT` | Backend | No | HTTP port. Defaults to `4000` in `server.ts`. |
 | `DATABASE_URL` | Backend | Yes | PostgreSQL connection string used by the `pg` pool. |
-| `FRONTEND_URL` | Backend | No | Allowed frontend CORS origin. Defaults to `http://localhost:5173`. |
-| `VITE_API_URL` | Frontend | Recommended | API base URL, for example `http://localhost:4000/api`. The current frontend fallback is `http://localhost:5000/api`. |
+| `FRONTEND_URL` | Backend | No | Allowed frontend CORS origin(s), comma-separated when needed. Trailing slashes are normalized. Defaults to `http://localhost:5173`. |
+| `VITE_API_URL` | Frontend | Yes | The only backend API base URL used by the frontend, for example `http://localhost:4000/api`. |
 
-The repository includes `.env.example` at the root, `backend/.env.example`, and `frontend/.env.example`. The frontend example contains the local API URL; copy it to `frontend/.env.local` for local development. `.env` files are ignored by Git; only example files are allowed by the root ignore rules.
+The repository includes separate environment examples: `backend/.env.example` for backend port, database, and CORS configuration, and `frontend/.env.example` for the frontend API URL. Copy each example to its respective local environment file. `.env` files are ignored by Git; only example files are allowed by the root ignore rules.
 
 Never commit real database credentials or deployment secrets.
 
@@ -636,7 +635,7 @@ Implemented:
 - Environment variables for database URL, port, CORS origin, and frontend API URL.
 - `.env` files ignored by Git.
 - Helmet middleware for common HTTP security headers.
-- CORS allowlist based on `FRONTEND_URL`, plus local development exceptions for the API host.
+- CORS allowlist based on normalized, comma-separated `FRONTEND_URL` values, plus local development exceptions for the API host.
 - Parameterized PostgreSQL queries.
 - Strict Zod validation for order creation.
 - Generic `500` responses rather than returning raw unexpected error details to clients.
@@ -648,6 +647,13 @@ Implemented:
 - Product image rendering currently uses a placeholder image URL for catalog products.
 - No Docker, CI, hosting-provider, or database migration deployment configuration is committed.
 - The frontend/backend default port mismatch should be resolved in deployment configuration by setting `VITE_API_URL` explicitly.
+
+For the current deployment, set these provider environment variables:
+
+- Render backend: `FRONTEND_URL=https://multi-vendor-ordering.vercel.app/`
+- Vercel frontend: `VITE_API_URL=https://multi-vendor-ordering.onrender.com/api`
+
+The backend normalizes the configured frontend origin, so either a trailing slash or no trailing slash is accepted. After changing Render environment variables, redeploy or restart the service so the new CORS allowlist is loaded.
 
 
 ## Design Decisions Supported by the Code

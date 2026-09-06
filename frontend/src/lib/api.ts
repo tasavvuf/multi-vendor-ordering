@@ -1,6 +1,12 @@
 import axios, { AxiosError } from 'axios';
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+
+if (!configuredApiUrl) {
+  throw new Error('VITE_API_URL is required. Configure the frontend environment before starting the app.');
+}
+
+export const API_BASE_URL = configuredApiUrl;
 export const PRODUCT_IMAGE_URL = 'https://placehold.co/600x400';
 export const api = axios.create({ baseURL: API_BASE_URL });
 
